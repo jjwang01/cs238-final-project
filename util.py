@@ -14,11 +14,12 @@ def initialize_values():
          [100, -20, 10, 5, 5, 10, -20, 100]]
     return np.array(values)
 
-def check_mobility(pid, i, j, board_state):
+def check_mobility(pid, i, j, board):
     m_p, m_o = 0, 0
     for i in range(BOARD_SIZE):
         for j in range(BOARD_SIZE):
-            if board_state.isValidMove(pid, i, j):
+            if board.isValidMove(pid, i, j):
                 m_p += 1
-            if board_state.isValidMove(-1 * pid, i, j):
+            if board.isValidMove(-1 * pid, i, j):
                 m_o += 1
+    return m_p, m_o

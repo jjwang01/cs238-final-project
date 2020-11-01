@@ -5,18 +5,26 @@ from game import Game
 from player import HumanPlayer, RandomAgent, PositionalAgent, MobilityAgent
 
 # use argparse down the line
-if len(sys.argv) != 5:
+if len(sys.argv) != 4:
     print("Usage should be main.py <player_agent> <opp_agent> <num_matches>")
     sys.exit()
 
 if sys.argv[1] == 'random':
     player = RandomAgent()
+elif sys.argv[1] == 'positional':
+    player = PositionalAgent()
+elif sys.argv[1] == 'mobility':
+    player = MobilityAgent()
 else:
     print("No such agent.")
     sys.exit()
 
 if sys.argv[2] == 'random':
     opp = RandomAgent()
+elif sys.argv[2] == 'positional':
+    opp = PositionalAgent()
+elif sys.argv[2] == 'mobility':
+    opp = MobilityAgent()
 else:
     print("No such agent.")
     sys.exit()

@@ -15,15 +15,22 @@ class Board(object):
     BLACK = 1
     WHITE = -1
 
-    def __init__(self):
-        self.board = np.zeros((8,8), int)
-        self.board[3][3] = Board.BLACK
-        self.board[4][4] = Board.BLACK
-        self.board[4][3] = Board.WHITE
-        self.board[3][4] = Board.WHITE
+    def __init__(self, board='new', remaining_squares=8*8-4, score='new'):
+        if board == 'new':
+            self.board = np.zeros((8,8), int)
+            self.board[3][3] = Board.BLACK
+            self.board[4][4] = Board.BLACK
+            self.board[4][3] = Board.WHITE
+            self.board[3][4] = Board.WHITE
+        else:
+            self.board = board
 
-        self.remaining_squares = 8*8 - 4
-        self.score = {Board.BLACK: 2, Board.WHITE: 2}
+        self.remaining_squares = remaining_squares
+
+        if score == 'new':
+            self.score = {Board.BLACK: 2, Board.WHITE: 2}
+        else:
+            self.score = score
 
     def getScore(self):
         return self.score
@@ -151,3 +158,9 @@ class Board(object):
             print("\t" + Back.GREEN + Fore.WHITE + "{}{}".format(i,
                 getRow(self.board[i])))
             sys.stdout.write(Style.RESET_ALL)
+
+    def copy(self):
+        """
+        Create a copy of the board.
+        """
+        return Board(board=self.board.copy(), remaining_squares=self.remaining_squares, score=self.score.copy())

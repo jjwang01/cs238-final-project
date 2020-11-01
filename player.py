@@ -16,7 +16,7 @@ class HumanPlayer:
         self.play_history = []
         self.wins = 0
 
-    def play(self, place_func, board_state, pid, _):
+    def play(self, place_func, board, pid, _):
         try:
             pos = map(int, map(str.strip, input().split(" ")))
             place_func(*pos)
@@ -31,10 +31,9 @@ class RandomAgent:
         self.play_history = []
         self.wins = 0
 
-    def play(self, place_func, board_state, pid, _):
+    def play(self, place_func, board, pid, _):
         if self.seed:
             random.seed(self.seed)
-        # check using the board_state
         possibilities = [[(i,j) for j in range(BOARD_SIZE)] for i in range(BOARD_SIZE)]
         flattened_possibilities = [item for sublist in possibilities for item in sublist]
         while flattened_possibilities:
@@ -52,27 +51,29 @@ class PositionalAgent:
         self.play_history = []
         self.wins = 0
 
-    def play(self, place_func, board_state, pid, _):
-        pct_tiles_left = board_state.remaining_squares / BOARD_SIZE**2
-        pos, max_val = None, 0
+    def play(self, place_func, board, pid, _):
+        pct_tiles_left = board.remaining_squares / BOARD_SIZE**2
+        pos, max_val = None, float('-inf')
         for i in range(BOARD_SIZE):
             for j in range(BOARD_SIZE):
-                if board_state.isValidMove(pid, i, j):
-                    board_state.updateBoard(pid, i, j)
-                    if pct_tiles_left < 0.8:
-                        val = np.multiply(np.power(board_state.board, 2), VALUES[i,j])
+                if board.isValidMove(pid, i, j):
+                    temp = board.copy()
+                    temp.updateBoard(pid, i, j)
+                    board_state = temp.getState()
+                    if 1 - pct_tiles_left < 0.8:
+                        val = np.sum(np.multiply(
+                            pid * np.power(board_state, 2), VALUES[i, j]))
                     else:
-                        val = pid * np.sum(board_state.board) 
-                    board_state.updateBoard(0, i, j)
+                        val = pid * np.sum(board_state)
 
                     if val > max_val:
-                        pos = (i,j)
+                        pos = (i, j)
                         max_val = val
 
         try:
             place_func(*pos)
             return True
-        except ValueError:
+        except TypeError:
             return False
 
 
@@ -84,22 +85,30 @@ class MobilityAgent:
         self.play_history = []
         self.wins = 0
 
-    def play(self, place_func, board_state, pid, _):
+    def play(self, place_func, board, pid, _):
         # mobility = # of legal moves a player can make in a certain position
-        pct_tiles_left = board_state.remaining_squares / BOARD_SIZE**2
-        pos, max_val = None, 0
+        pct_tiles_left = board.remaining_squares / BOARD_SIZE**2
+        pos, max_val = None, float('-inf')
         for i in range(BOARD_SIZE):
             for j in range(BOARD_SIZE):
-                if board_state.isValidMove(pid, i, j):
-                    board_state.updateBoard(pid, i, j)
-                    if pct_tiles_left < 0.8:
-                        c_p = pid * (board_state.board[0,0] + board_state.board[0,7] + board_state.board[7,0] + board_state.board[7,7])
-                        c_o = 4 - c_p
-                        m_p, m_o = util.check_mobility(pid, i, j, board_state)
-                        val = self.w1 * (c_p - c_o) + self.w2 * (m_p - m_o) / (m_p + m_o)
+                if board.isValidMove(pid, i, j):
+                    temp = board.copy()
+                    temp.updateBoard(pid, i, j)
+                    board_state = temp.getState()
+                    if 1 - pct_tiles_left < 0.8:
+                        c_p = pid * \
+                            (board_state[0, 0] + board_state[0, 7] +
+                             board_state[7, 0] + board_state[7, 7])
+                        c_o = -1 * pid * \
+                            (board_state[0, 0] + board_state[0, 7] +
+                             board_state[7, 0] + board_state[7, 7])
+                        m_p, m_o = util.check_mobility(pid, i, j, temp)
+                        try:
+                            val = self.w1 * (c_p - c_o) + self.w2 * (m_p - m_o) / (m_p + m_o)
+                        except ZeroDivisionError:
+                            continue
                     else:
-                        val = pid * np.sum(board_state.board)
-                    board_state.updateBoard(0, i ,j)
+                        val = pid * np.sum(board_state)
                 
                     if val > max_val:
                         pos = (i,j)
@@ -108,7 +117,7 @@ class MobilityAgent:
         try:
             place_func(*pos)
             return True
-        except ValueError:
+        except TypeError:
             return False
  
 

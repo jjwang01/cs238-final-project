@@ -30,7 +30,7 @@ class Game:
                 # Player id
                 pid = i*2-1
                 did_move = player[0].play(lambda r,c: self.board.updateBoard(pid,r,c),
-                                   self.board.getState(), pid, player[1])
+                                   self.board, pid, player[1])
 
                 if show_board:
                     self.board.printBoard()

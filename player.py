@@ -6,6 +6,7 @@ import numpy as np
 import random
 import util
 import nn
+import conv
 import torch
 import torch.optim as optim
 from torch.autograd import Variable
@@ -140,10 +141,10 @@ class QLearningAgent:
         self.epsilon = 0.6
         self.play_history = []
 
-    def play(self, place_func, board_state, pid, log_history=True):
+    def play(self, place_func, board, pid, log_history=True):
         # convert 2D board state to a one hot encoded state
         s = np.apply_along_axis(lambda x: int((x == pid and 1) or (x != 0 and -1)),
-                                1, board_state.board.reshape((64, 1))).reshape((64, 1))
+                                1, board.board.reshape((64, 1))).reshape((64, 1))
         # pos = self.explore_strategy(place_func)
         # pos = self.nn.forward(s)
         u = self.nn.forward(torch.FloatTensor(s))
@@ -154,7 +155,7 @@ class QLearningAgent:
             np.random.shuffle(positions)
             for action in positions:
                 pos = action // 8, action % 8
-                if board_state.isValidMove(pid, pos[0], pos[1]):
+                if board.isValidMove(pid, pos[0], pos[1]):
                     valid_move = True
                     break
         else:
@@ -168,7 +169,7 @@ class QLearningAgent:
                 # print(pid)
                 # print(pos[0])
                 # print(pos[1])
-                if board_state.isValidMove(pid, pos[0], pos[1]):
+                if board.isValidMove(pid, pos[0], pos[1]):
                     valid_move = True
                     break
         # action = torch.argmax(u)
@@ -235,6 +236,108 @@ class QLearningAgent:
 
     def loss_v(self, targets, outputs):
         return torch.sum((targets - outputs.view(-1)) ** 2) / targets.size()[0]
+
+class QLearningConvAgent:
+
+    def __init__(self, alpha=0.07, gamma=0.99, k_max=50, explore_strategy='epsilon_greedy'):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.k_max = k_max
+        self.explore_strategy = explore_strategy
+        self.nn = conv.QLConvNet()
+        self.wins = 0
+        self.epsilon = 0.6
+        self.play_history = []
+
+    def play(self, place_func, board, pid, log_history=True):
+        # populate the input array
+        prev_board_state = board.getState()
+        actions = []
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                if board.isValidMove(pid, i, j):
+                    temp = board.copy()
+                    temp.updateBoard(pid, i, j)
+                    board_state = temp.getState()
+                    actions.append(board_state)
+                else:
+                    # may want to instead pass a zeroed out matrix
+                    actions.append(prev_board_state)
+
+        # (1, 64, 8, 8)
+        conv_input = np.array(actions)
+        # (1, 64)
+        u = self.nn.forward(torch.unsqueeze(torch.FloatTensor(conv_input), 0))
+        # choose the action that leads to the highest score
+        pos = None
+        valid_move = False
+        if np.random.random() < self.epsilon:  # EPISLON GREEDY
+            positions = list(range(64))
+            np.random.shuffle(positions)
+            for action in positions:
+                pos = action // 8, action % 8
+                if board.isValidMove(pid, pos[0], pos[1]):
+                    valid_move = True
+                    break
+        else:
+            sort_ind = torch.argsort(u, descending=True)
+            for action in np.array(sort_ind[0]):
+                pos = action // 8, action % 8
+                if board.isValidMove(pid, pos[0], pos[1]):
+                    valid_move = True
+                    break
+
+        if pos == False:
+            return False
+        if valid_move == False:
+            return False
+        elif log_history:
+            raveled_pos = np.ravel_multi_index(pos, (8,8))
+            self.play_history.append((np.copy(conv_input), raveled_pos, u[0][raveled_pos]))
+        return place_func(*pos)
+
+
+    def update_model(self, final_score):
+        # state, action = self.play_history[0]
+        optimizer = optim.Adam(self.nn.parameters())
+        self.nn.train()
+        pi_loss = []
+        v_loss = []
+        boards, pis, rs = list(zip(*self.play_history))
+        target_pis = torch.FloatTensor(np.array(pis))
+        target_rs = torch.FloatTensor(np.array(rs).astype(np.float64))
+
+        pi_temp = []
+        r_temp = []
+        for i, s in enumerate(boards):
+            u = self.nn.forward(torch.unsqueeze(torch.FloatTensor(s), 0))
+            pi = torch.argmax(u)s
+            r = u[0][pi]
+            pi_temp.append(pi)
+            r_temp.append(r)
+        pi_loss = self.loss_pi(target_pis, torch.FloatTensor(pi_temp))
+        r_loss = self.loss_v(target_rs, torch.FloatTensor(r_temp))
+        total_loss = pi_loss + r_loss
+        # print(total_loss)
+        # state_action_values = torch.FloatTensor(r_temp)
+        # expected_state_action_values = (target_pis * self.gamma) + target_rs
+        # loss = torch.nn.functional.smooth_l1_loss(state_action_values, expected_state_action_values)#.unsqueeze(1))
+        loss = Variable(total_loss, requires_grad=True)
+        print("LOSS",loss)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+
+    def loss_pi(self, targets, outputs):
+        return -torch.sum(targets * outputs) / targets.size()[0]
+
+    def loss_v(self, targets, outputs):
+        return torch.sum((targets - outputs.view(-1)) ** 2) / targets.size()[0]
+
+                
+
 
 # class ReplayGradientQLearningAgent:
 # """

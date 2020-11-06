@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 from game import Game
-from player import HumanPlayer, RandomAgent, PositionalAgent, MobilityAgent, QLearningAgent
+from player import HumanPlayer, RandomAgent, PositionalAgent, MobilityAgent, QLearningAgent, QLearningConvAgent
 
 # use argparse down the line
 if len(sys.argv) != 4:
@@ -21,6 +21,9 @@ elif sys.argv[1] == 'mobility':
 elif sys.argv[1] == 'qlearn':
     player = QLearningAgent()
     qlearn_pl = True
+elif sys.argv[1] == 'qlearn_conv':
+    player = QLearningConvAgent()
+    qlearn_pl = True
 else:
     print("No such agent.")
     sys.exit()
@@ -33,6 +36,9 @@ elif sys.argv[2] == 'mobility':
     opp = MobilityAgent()
 elif sys.argv[2] == 'qlearn':
     opp = QLearningAgent()
+    qlearn_opp = True
+elif sys.argv[2] == 'qlearn_conv':
+    opp = QLearningConvAgent()
     qlearn_opp = True
 else:
     print("No such agent.")

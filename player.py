@@ -136,7 +136,7 @@ class QLearningAgent:
         self.gamma = gamma
         self.k_max = k_max
         self.explore_strategy = explore_strategy
-        self.nn = nn.QLNN([64, 128, 128, 64], 0.01)
+        self.nn = nn.QLNN([64**2, 128, 128, 64])
         self.wins = 0
         self.epsilon = 0.6
         self.play_history = []
@@ -147,10 +147,30 @@ class QLearningAgent:
                                 1, board.board.reshape((64, 1))).reshape((64, 1))
         # pos = self.explore_strategy(place_func)
         # pos = self.nn.forward(s)
-        u = self.nn.forward(torch.FloatTensor(s))
+        prev_board_state = board.getState()
+
+        actions = []
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                if board.isValidMove(pid, i, j):
+                    temp = board.copy()
+                    temp.updateBoard(pid, i, j)
+                    board_state = temp.getState()
+                    actions.append(board_state.flatten())
+                else:
+                    # may want to instead pass a zeroed out matrix
+                    actions.append(prev_board_state.flatten())
+
+        # (1, 64, 8, 8)
+        input_nn = np.array(actions)
+
+
+
+
+        u = self.nn.forward(torch.FloatTensor(input_nn))
+        u = u.reshape(1,u.shape[0])
         valid_move = False
         if np.random.random() < self.epsilon:   #EPISLON GREEDY
-            # print("HI")
             positions = list(range(64))
             np.random.shuffle(positions)
             for action in positions:
@@ -160,21 +180,13 @@ class QLearningAgent:
                     break
         else:
             sort_ind = torch.argsort(u, descending=True)
-            # print("HIUII")
-            # print(sort_ind)
-            # print(u[0][sort_ind])
 
             for action in np.array(sort_ind[0]):
                 pos = action // 8, action % 8
-                # print(pid)
-                # print(pos[0])
-                # print(pos[1])
                 if board.isValidMove(pid, pos[0], pos[1]):
                     valid_move = True
                     break
-        # action = torch.argmax(u)
 
-        # print(pos[0]*8 + pos[1])
 
         if pos == False:
             return False
@@ -184,7 +196,7 @@ class QLearningAgent:
             # print("HISTORY____")
             # print(s)
             # print(len(np.where(s != 0)[0]))
-            self.play_history.append((np.copy(s), action, u[0][action]))
+            self.play_history.append((np.copy(input_nn), action, u[0][action]))
         return place_func(*pos)
         # try:
             # place_func(*pos)
@@ -208,12 +220,15 @@ class QLearningAgent:
         pi_temp = []
         r_temp = []
         for i, s in enumerate(boards):
+
             u = self.nn.forward(torch.FloatTensor(s))
-            # print('grad2',u.grad)
+            u = u.reshape(1,u.shape[0])
+
             pi = torch.argmax(u)
             r = u[0][pi]
             pi_temp.append(pi)
             r_temp.append(r)
+
         pi_loss = self.loss_pi(target_pis, torch.FloatTensor(pi_temp))
         r_loss = self.loss_v(target_rs, torch.FloatTensor(r_temp))
         total_loss = pi_loss + r_loss
@@ -222,7 +237,6 @@ class QLearningAgent:
         # expected_state_action_values = (target_pis * self.gamma) + target_rs
         # loss = torch.nn.functional.smooth_l1_loss(state_action_values, expected_state_action_values)#.unsqueeze(1))
         loss = Variable(total_loss, requires_grad=True)
-        print("LOSS",loss)
 
 
         optimizer.zero_grad()
@@ -318,12 +332,10 @@ class QLearningConvAgent:
         pi_loss = self.loss_pi(target_pis, torch.FloatTensor(pi_temp))
         r_loss = self.loss_v(target_rs, torch.FloatTensor(r_temp))
         total_loss = pi_loss + r_loss
-        # print(total_loss)
         # state_action_values = torch.FloatTensor(r_temp)
         # expected_state_action_values = (target_pis * self.gamma) + target_rs
         # loss = torch.nn.functional.smooth_l1_loss(state_action_values, expected_state_action_values)#.unsqueeze(1))
         loss = Variable(total_loss, requires_grad=True)
-        print("LOSS",loss)
 
         optimizer.zero_grad()
         loss.backward()

@@ -55,34 +55,59 @@ num_epochs = 1
 if qlearn_pl or qlearn_opp:
     num_epochs = 20
 
-player_wins = []
+def main():
+    player_wins = []
+    # with open(f"{sys.argv[2]}.txt", "a") as f1:
+    #     f1.write("New Game\n")
 
-for e in range(num_epochs):
-    player.wins = 0
-    player_game_history = []
+    for e in range(num_epochs):
+        player.wins = 0
+        player_game_history = []
 
-    for _ in range(num_matches):
-        player.play_history = []
+        for _ in range(num_matches):
+            player.play_history = []
 
-        G = Game()
-        G.addPlayer(player)
-        G.addPlayer(opp)
-        # G.run(show_board=True)
-        G.run()
+            G = Game()
+            G.addPlayer(player)
+            G.addPlayer(opp)
+            # G.run(show_board=True)
+            G.run()
 
-        final_score = list(G.getScore().items())
-        final_score.sort()
-        total = sum(map(lambda x: x[1], final_score))
-        player_score = (final_score[0][1]/total - 0.5) * 2
-        player.wins += player_score > 0
-        player_game_history.append((player.play_history, player_score))
+            # final_score = list(G.getScore().items())
+            # final_score.sort()
+            # print(final_score)
+            # total = sum(map(lambda x: x[1], final_score))
+            # player_score = (final_score[0][1]/total - 0.5) * 2
+            # print(player_score)
 
-    for game, score in player_game_history:
-        player.play_history = game
-        if qlearn_pl:
-            player.update_model(score)
-        if qlearn_opp:
-            opp.update_model(score)
+            final_score = list(G.getScore().items())
+            # print(final_score)
+            final_score.sort()
+            # print(final_score)
+            player_score = final_score[1][1]
+            opp_score = final_score[0][1]
+            # print(player_score)
+            # print(opp_score)
+            if player_score > opp_score:
+                # print("hi")
+                player.wins += 1
+            # player
+            # player.wins += player_score > 0
+            player_game_history.append((player.play_history, player_score))
 
-    print('The player wins ' + str(player.wins) + ' out of ' + str(num_matches) + ' times.')
+        for game, score in player_game_history:
+            player.play_history = game
+            if qlearn_pl:
+                player.update_model(score)
+            if qlearn_opp:
+                opp.update_model(score)
 
+        # print('The player wins ' + str(player.wins) + ' out of ' + str(num_matches) + ' times.')
+    print(player.wins)
+    if sys.argv[1] == "qlearn":
+        with open(f"logs/{sys.argv[2]}.txt", "a") as f:
+            f.write(f"{player.wins}\n")
+    # return player.wins
+
+if __name__ == '__main__':
+    main()
